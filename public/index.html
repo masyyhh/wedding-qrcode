@@ -883,6 +883,17 @@
 
   <!-- APPLICATION JAVASCRIPT LOGIC -->
   <script>
+    // --- Safe Icon Renderer Helper ---
+    function safeCreateIcons() {
+      try {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      } catch (err) {
+        console.warn('Icon render deferred:', err);
+      }
+    }
+
     // --- State & Initial Configurations ---
     let currentUser = null;
     let authMode = 'login'; // 'login' | 'signup'
@@ -892,43 +903,58 @@
     let allTrackedLinks = [];
     let activeAnalyticsShortId = null;
     let presetLogoSvg = '';
+    let qrCode = null;
 
-    // Initialize QR Code Styling instance
-    const qrCode = new QRCodeStyling({
-      width: 280,
-      height: 280,
-      type: "canvas",
-      data: "https://example.com/our-wedding",
-      image: "",
-      dotsOptions: {
-        color: "#09090b",
-        type: "rounded"
-      },
-      cornersSquareOptions: {
-        color: "#09090b",
-        type: "extra-rounded"
-      },
-      cornersDotOptions: {
-        color: "#09090b",
-        type: "dot"
-      },
-      backgroundOptions: {
-        color: "#ffffff"
-      },
-      imageOptions: {
-        crossOrigin: "anonymous",
-        margin: 6,
-        imageSize: 0.35,
-        hideBackgroundDots: true
-      },
-      qrOptions: {
-        errorCorrectionLevel: "M"
+    // Guarded QR Code Styling Instance Initializer
+    function getQRCode() {
+      if (qrCode) return qrCode;
+      if (typeof QRCodeStyling === 'undefined') {
+        return null;
       }
-    });
+      try {
+        qrCode = new QRCodeStyling({
+          width: 280,
+          height: 280,
+          type: "canvas",
+          data: "https://qrpatterns.site",
+          image: "",
+          dotsOptions: {
+            color: "#09090b",
+            type: "rounded"
+          },
+          cornersSquareOptions: {
+            color: "#09090b",
+            type: "extra-rounded"
+          },
+          cornersDotOptions: {
+            color: "#09090b",
+            type: "dot"
+          },
+          backgroundOptions: {
+            color: "#ffffff"
+          },
+          imageOptions: {
+            crossOrigin: "anonymous",
+            margin: 6,
+            imageSize: 0.35,
+            hideBackgroundDots: true
+          },
+          qrOptions: {
+            errorCorrectionLevel: "M"
+          }
+        });
 
-    // Mount QR code canvas
-    const qrCanvasWrapper = document.getElementById("qr-canvas-wrapper");
-    qrCode.append(qrCanvasWrapper);
+        const qrCanvasWrapper = document.getElementById("qr-canvas-wrapper");
+        if (qrCanvasWrapper) {
+          qrCanvasWrapper.innerHTML = '';
+          qrCode.append(qrCanvasWrapper);
+        }
+        return qrCode;
+      } catch (e) {
+        console.warn('QR code initialization deferred:', e);
+        return null;
+      }
+    }
 
     // --- Authentication Helpers ---
     function getAuthToken() {
@@ -1009,7 +1035,7 @@
         if (dashboard) dashboard.classList.add('hidden');
       }
 
-      lucide.createIcons();
+      safeCreateIcons();
     }
 
     // --- Auth Modal Controls ---
@@ -1017,7 +1043,7 @@
       setAuthMode(mode);
       document.getElementById('auth-error-box').classList.add('hidden');
       document.getElementById('auth-modal').classList.remove('hidden');
-      lucide.createIcons();
+      safeCreateIcons();
     }
 
     function closeAuthModal() {
@@ -1149,7 +1175,7 @@
         input.type = 'password';
         btn.innerHTML = `<i data-lucide="eye" class="w-3.5 h-3.5"></i>`;
       }
-      lucide.createIcons();
+      safeCreateIcons();
     }
 
     // --- Tab Switching ---
@@ -1167,7 +1193,7 @@
           btn.className = "flex-1 py-2 px-3 text-xs font-semibold rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition flex items-center justify-center space-x-1.5";
         }
       });
-      lucide.createIcons();
+      safeCreateIcons();
     }
 
     // --- Content Type Selection ---
@@ -1193,7 +1219,7 @@
       if (pill) pill.textContent = `${type.toUpperCase()} / ${document.getElementById('tracking-toggle').checked ? 'Dynamic' : 'Static'}`;
 
       recomputeAndRenderQR();
-      lucide.createIcons();
+      safeCreateIcons();
     }
 
     // --- Content Raw String Generator ---
@@ -1270,7 +1296,13 @@
         };
       }
 
-      qrCode.update({
+      const code = getQRCode();
+      if (!code) {
+        setTimeout(recomputeAndRenderQR, 300);
+        return;
+      }
+
+      code.update({
         data: targetData,
         dotsOptions,
         cornersSquareOptions: {
@@ -1367,9 +1399,10 @@
 
     // --- Preset Center Icon SVGs ---
     function setPresetLogo(type) {
+      const code = getQRCode();
       if (!type) {
         presetLogoSvg = '';
-        qrCode.update({ image: '' });
+        if (code) code.update({ image: '' });
         return;
       }
 
@@ -1387,7 +1420,7 @@
       }
 
       const encoded = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);
-      qrCode.update({ image: encoded });
+      if (code) code.update({ image: encoded });
     }
 
     // --- File & Image Upload Handler ---
@@ -1455,28 +1488,38 @@
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => qrCode.update({ image: reader.result });
+      reader.onload = () => {
+        const code = getQRCode();
+        if (code) code.update({ image: reader.result });
+      };
       reader.readAsDataURL(file);
     });
 
     // --- Download Functions ---
     async function downloadQRCode() {
+      const code = getQRCode();
+      if (!code) {
+        showToast('QR generator is still loading. Please wait a second...', 'alert-circle');
+        return;
+      }
       const format = document.getElementById('download-format').value;
       const res = parseInt(document.getElementById('download-resolution').value, 10);
       const title = document.getElementById('qr-title-input').value.trim() || 'qrcode';
       const cleanFileName = title.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
 
       // Temporarily update size for high-res export
-      qrCode.update({ width: res, height: res });
-      await qrCode.download({ name: cleanFileName, extension: format });
-      qrCode.update({ width: 280, height: 280 }); // restore preview size
+      code.update({ width: res, height: res });
+      await code.download({ name: cleanFileName, extension: format });
+      code.update({ width: 280, height: 280 }); // restore preview size
 
       showToast(`Downloaded ${cleanFileName}.${format}`, 'download');
     }
 
     async function copyQRCodeImage() {
+      const code = getQRCode();
+      if (!code) return;
       try {
-        const blob = await qrCode.getRawData('png');
+        const blob = await code.getRawData('png');
         await navigator.clipboard.write([
           new ClipboardItem({ 'image/png': blob })
         ]);
@@ -1559,7 +1602,7 @@
             </td>
           </tr>
         `;
-        lucide.createIcons();
+        safeCreateIcons();
         return;
       }
 
@@ -1612,7 +1655,7 @@
         `;
       }).join('');
 
-      lucide.createIcons();
+      safeCreateIcons();
     }
 
     function filterTrackedLinks() {
@@ -1680,7 +1723,7 @@
         // Render Recent Scans Table
         renderRecentScansTable(data.recentScans);
 
-        lucide.createIcons();
+        safeCreateIcons();
       } catch (err) {
         console.error('Error opening analytics modal:', err);
         showToast(err.message, 'alert-triangle');
@@ -1907,7 +1950,7 @@
       toastMsg.textContent = message;
       if (toastIcon) {
         toastIcon.setAttribute('data-lucide', iconName);
-        lucide.createIcons();
+        safeCreateIcons();
       }
 
       toast.classList.remove('translate-y-12', 'opacity-0', 'pointer-events-none');
@@ -1962,14 +2005,14 @@
         document.documentElement.classList.remove('dark');
         themeIcon.setAttribute('data-lucide', 'moon');
       }
-      lucide.createIcons();
+      safeCreateIcons();
     }
 
     themeToggleBtn.addEventListener('click', () => {
       const isDark = document.documentElement.classList.toggle('dark');
       localStorage.setItem('qr-theme', isDark ? 'dark' : 'light');
       themeIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
-      lucide.createIcons();
+      safeCreateIcons();
     });
 
     // --- Color Pickers Sync Listeners ---
@@ -2023,13 +2066,65 @@
       recomputeAndRenderQR();
     });
 
-    // --- Initialize on Page Load ---
-    window.addEventListener('DOMContentLoaded', async () => {
+    // --- Window Exports (Guarantees inline onclick / onsubmit attributes work anywhere) ---
+    window.switchBuilderTab = switchBuilderTab;
+    window.openAuthModal = openAuthModal;
+    window.closeAuthModal = closeAuthModal;
+    window.setAuthMode = setAuthMode;
+    window.handleAuthSubmit = handleAuthSubmit;
+    window.useDemoAccount = useDemoAccount;
+    window.logoutUser = logoutUser;
+    window.setContentType = setContentType;
+    window.applyPalette = applyPalette;
+    window.setPresetLogo = setPresetLogo;
+    window.downloadQRCode = downloadQRCode;
+    window.copyQRCodeImage = copyQRCodeImage;
+    window.togglePasswordVisibility = togglePasswordVisibility;
+    window.applyAndRegisterQRCode = applyAndRegisterQRCode;
+    window.simulateTestScan = simulateTestScan;
+    window.exportScansCSV = exportScansCSV;
+    window.openAnalyticsModal = openAnalyticsModal;
+    window.closeAnalyticsModal = closeAnalyticsModal;
+    window.deleteTrackedLink = deleteTrackedLink;
+    window.toggleDarkMode = toggleDarkMode;
+
+    // --- Initialize on Page Load & Programmatic Listeners ---
+    function setupDOMListeners() {
+      // Direct click listeners for Builder Tabs (Appearance, Logo, Content)
+      document.getElementById('tab-btn-content')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchBuilderTab('content');
+      });
+      document.getElementById('tab-btn-styling')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchBuilderTab('styling');
+      });
+      document.getElementById('tab-btn-branding')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchBuilderTab('branding');
+      });
+
+      // Direct submit listener for Auth Form
+      document.getElementById('auth-form')?.addEventListener('submit', (e) => {
+        handleAuthSubmit(e);
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', async () => {
+        setupDOMListeners();
+        initTheme();
+        safeCreateIcons();
+        await checkAuthSession();
+        await recomputeAndRenderQR();
+      });
+    } else {
+      setupDOMListeners();
       initTheme();
-      lucide.createIcons();
-      await checkAuthSession();
-      await recomputeAndRenderQR();
-    });
+      safeCreateIcons();
+      checkAuthSession();
+      recomputeAndRenderQR();
+    }
   </script>
 </body>
 </html>

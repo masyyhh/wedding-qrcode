@@ -66,9 +66,13 @@ app.use(helmet({
       scriptSrc: [
         "'self'",
         "'unsafe-inline'",
+        "'unsafe-eval'",
         "https://cdn.tailwindcss.com",
         "https://unpkg.com",
         "https://cdn.jsdelivr.net"
+      ],
+      scriptSrcAttr: [
+        "'unsafe-inline'"
       ],
       styleSrc: [
         "'self'",
@@ -91,22 +95,44 @@ app.use(helmet({
         "https://unpkg.com"
       ],
       objectSrc: ["'none'"],
-      upgradeInsecureRequests: isProduction ? [] : null
+      upgradeInsecureRequests: null
     }
   },
   crossOriginEmbedderPolicy: false
 }));
 
-// 2. CORS Policy
-let allowedOrigins = '*';
-if (process.env.CORS_ORIGIN) {
-  allowedOrigins = process.env.CORS_ORIGIN.split(',').map(s => s.trim());
-} else if (process.env.CLIENT_URL) {
-  allowedOrigins = [process.env.CLIENT_URL.replace(/\/+$/, '')];
-}
-
+// 2. CORS Policy (supports apex, www, localhost, and custom origin headers)
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    // Requests with no origin (e.g. mobile apps, curl, or standard same-origin navigation)
+    if (!origin) return callback(null, true);
+
+    if (process.env.CORS_ORIGIN === '*') return callback(null, true);
+
+    if (process.env.CORS_ORIGIN) {
+      const allowed = process.env.CORS_ORIGIN.split(',').map(s => s.trim());
+      if (allowed.includes(origin)) return callback(null, true);
+    }
+
+    if (process.env.CLIENT_URL) {
+      const clientUrl = process.env.CLIENT_URL.replace(/\/+$/, '');
+      try {
+        const u = new URL(clientUrl);
+        const apex = u.hostname.replace(/^www\./, '');
+        const originUrl = new URL(origin);
+        const originHost = originUrl.hostname.replace(/^www\./, '');
+
+        if (originHost === apex || originHost === 'localhost' || originHost === '127.0.0.1') {
+          return callback(null, true);
+        }
+      } catch {
+        if (origin === clientUrl) return callback(null, true);
+      }
+    }
+
+    // Default: allow all origins in web app
+    return callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
 }));
