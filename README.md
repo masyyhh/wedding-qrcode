@@ -43,17 +43,28 @@ A production-grade, publication-quality QR code platform designed for **`qrpatte
 
 ---
 
+## 🛠️ Modern Tech Stack
+- **Frontend**: **Vite 6** + **React 19** + **Tailwind CSS v4** + **Lucide React** + **qr-code-styling** (Native bundling, zero CDN dependencies, strict CSP compliance)
+- **Backend**: **Node.js 22** + **Express 5** + Dual-Engine Database (**PostgreSQL 16** + **SQLite WAL**)
+- **Deployment**: **Docker Compose** + **Caddy** (Automated HTTPS for `qrpatterns.site`)
+
+---
+
 ## 🚀 Quick Local Development
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Start server (starts on SQLite by default on port 5001)
-npm start
-
-# Or development watch mode
+# 2. Start Vite development server (frontend hot reload at http://localhost:5173)
 npm run dev
+
+# 3. Start Node.js backend server (at http://localhost:5001)
+npm run server
+
+# 4. Or build and run full production stack locally
+npm run build
+npm start
 ```
 
 Visit **`http://localhost:5001`** in your browser.
@@ -179,12 +190,28 @@ If your droplet already has Caddy running on ports 80/443 for another site (e.g.
 
 ```text
 qrpatterns/
+├── src/                    # Modern Vite + React 19 Frontend
+│   ├── components/
+│   │   ├── Navbar.jsx          # Header with branding, quick nav, theme toggle, and auth
+│   │   ├── ContentTab.jsx      # Content inputs (URL, Text, WiFi, vCard, Email, Upload)
+│   │   ├── AppearanceTab.jsx   # Curated palettes, custom hex, gradients, and pattern shapes
+│   │   ├── LogoTab.jsx         # Center icon presets, custom upload, and error correction
+│   │   ├── PreviewDock.jsx     # High-res reactive QR canvas, format/res select, download
+│   │   ├── AnalyticsDashboard.jsx # KPI cards, search, and user's private tracked QR list
+│   │   ├── AnalyticsModal.jsx  # Deep analytics, 7-day velocity chart, device/OS/browser bars
+│   │   ├── AuthModal.jsx       # Sign In & Sign Up with password toggle and demo shortcut
+│   │   ├── EditLinkModal.jsx   # Real-time destination URL and campaign title editing
+│   │   └── Toast.jsx           # Floating notifications for actions and status
+│   ├── App.jsx             # Main application state orchestration
+│   ├── index.css           # Tailwind CSS v4 styling & background grid
+│   └── main.jsx            # React 19 root
+├── dist/                   # Production-compiled client assets (built by Vite)
 ├── server.js               # Express 5 app with Helmet, Rate Limiting, SSRF defense & APIs
 ├── db.js                   # Dual-engine database adapter (PostgreSQL + SQLite)
 ├── public/
-│   ├── index.html          # Minimalist UI with auth modal, dynamic QR preview & SVG charts
 │   └── uploads/            # Local file storage fallback for uploaded images
-├── Dockerfile              # Multi-stage Node 22 Alpine production container
+├── vite.config.mjs         # Vite configuration with React and Tailwind v4 plugins
+├── Dockerfile              # Multi-stage Docker build (Stage 1: Vite React, Stage 2: Node)
 ├── .dockerignore           # Prevents secrets, node_modules, and local files leaking into images
 ├── docker-compose.prod.yml # Production orchestration (PostgreSQL 16 + App + Caddy)
 ├── Caddyfile               # Production reverse proxy with automatic SSL and HSTS

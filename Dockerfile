@@ -1,4 +1,16 @@
-# Multi-stage lightweight Node.js Dockerfile for QR Studio
+# Multi-stage lightweight Dockerfile for Vite React + Node.js
+# Stage 1: Build Vite React Frontend
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Stage 2: Production Runtime
 FROM node:22-alpine AS production
 
 WORKDIR /app
@@ -6,14 +18,14 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5001
 
-# Copy dependency manifests
-COPY package*.json ./
-
 # Install production dependencies only
+COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Copy application files
-COPY . .
+# Copy backend files and compiled frontend assets
+COPY server.js db.js ./
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
 
 # Ensure uploads directory exists and permissions are set for non-root node user
 RUN mkdir -p /app/public/uploads && chown -R node:node /app

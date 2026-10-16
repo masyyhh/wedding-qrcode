@@ -6,3 +6,4 @@ database.sqlite-shm
 .DS_Store
 public/uploads/*
 !public/uploads/.gitkeep
+dist/
