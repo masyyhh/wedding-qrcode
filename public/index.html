@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Studio — Modern Minimalist QR Generator & Analytics</title>
+  <meta name="description" content="Generate bespoke, high-resolution QR codes with real-time scan analytics, private user dashboards, dynamic link editing, and device breakdown." />
+
+  <!-- Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Lucide Icons & QR Code Styling Library -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+
+  <style>
+    /* Minimalist scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(150, 150, 150, 0.25);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(150, 150, 150, 0.45);
+    }
+
+    /* Subtle dot grid backdrop for preview */
+    .bg-grid-pattern {
+      background-size: 20px 20px;
+      background-image: radial-gradient(circle, rgba(160, 160, 160, 0.18) 1px, transparent 1px);
+    }
+    .dark .bg-grid-pattern {
+      background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    }
+
+    /* Custom toggle switch */
+    .switch-checkbox:checked + .switch-label {
+      background-color: #18181b;
+    }
+    .dark .switch-checkbox:checked + .switch-label {
+      background-color: #ffffff;
+    }
+    .switch-checkbox:checked + .switch-label .switch-dot {
+      transform: translateX(1.25rem);
+    }
+    .dark .switch-checkbox:checked + .switch-label .switch-dot {
+      background-color: #09090b;
+    }
+  </style>
+</head>
+
+<body class="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 antialiased min-h-screen transition-colors duration-200">
+  
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 w-full backdrop-blur-md bg-white/80 dark:bg-zinc-950/80 border-b border-zinc-200/80 dark:border-zinc-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Left: Brand Monogram -->
+      <a href="/" class="flex items-center space-x-3 group">
+        <div class="w-9 h-9 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold tracking-tight shadow-sm transition-transform group-hover:scale-105">
+          <i data-lucide="qr-code" class="w-5 h-5"></i>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="font-semibold text-lg tracking-tight">QR Studio</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-mono font-medium border border-zinc-200 dark:border-zinc-700">v2.1</span>
+        </div>
+      </a>
+
+      <!-- Center: Quick Nav Links -->
+      <nav class="hidden md:flex items-center space-x-1 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+        <a href="#creator-section" class="px-3 py-1.5 rounded-lg hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition">Creator</a>
+        <a href="#analytics-hub" class="px-3 py-1.5 rounded-lg hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition flex items-center space-x-1.5">
+          <span>My Analytics</span>
+          <span id="nav-count-badge" class="px-1.5 py-0.2 rounded-full text-xs font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">0</span>
+        </a>
+      </nav>
+
+      <!-- Right: User Auth & Controls -->
+      <div class="flex items-center space-x-3">
+        
+        <!-- Auth Status Container (Dynamic: Logged In / Logged Out) -->
+        <div id="nav-auth-container" class="flex items-center space-x-2">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <div class="h-4 w-px bg-zinc-200 dark:bg-zinc-800 hidden sm:block"></div>
+
+        <!-- Dark Mode Toggle Button -->
+        <button id="theme-toggle-btn" type="button" aria-label="Toggle theme" class="p-2 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 transition">
+          <i id="theme-icon" data-lucide="moon" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+    <!-- Hero / Headline -->
+    <section class="text-center max-w-2xl mx-auto pt-2 pb-4">
+      <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
+        Precision QR Codes with Private Analytics
+      </h1>
+      <p class="mt-3 text-zinc-600 dark:text-zinc-400 text-sm sm:text-base leading-relaxed">
+        Craft publication-grade QR codes with private analytics. Log in to track scans, device types, and update destination URLs dynamically without re-printing.
+      </p>
+    </section>
+
+    <!-- Studio Grid: Left Builder & Right Preview -->
+    <section id="creator-section" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- Left Column: Controls (7 cols) -->
+      <div class="lg:col-span-7 bg-white dark:bg-zinc-900/90 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 p-6 shadow-sm space-y-6">
+
+        <!-- Top Navigation Pills for Builder: Content | Styling | Branding -->
+        <div class="flex items-center p-1 bg-zinc-100 dark:bg-zinc-800/80 rounded-xl">
+          <button type="button" id="tab-btn-content" onclick="switchBuilderTab('content')" class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm transition flex items-center justify-center space-x-1.5">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+            <span>Content & Link</span>
+          </button>
+          <button type="button" id="tab-btn-styling" onclick="switchBuilderTab('styling')" class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition flex items-center justify-center space-x-1.5">
+            <i data-lucide="palette" class="w-3.5 h-3.5"></i>
+            <span>Appearance</span>
+          </button>
+          <button type="button" id="tab-btn-branding" onclick="switchBuilderTab('branding')" class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition flex items-center justify-center space-x-1.5">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+            <span>Logo & Quality</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: Content & Link -->
+        <div id="tab-content" class="space-y-6">
+          
+          <!-- Content Type Selector (Segmented Badges) -->
+          <div>
+            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2.5">Content Type</label>
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              <button type="button" onclick="setContentType('url')" id="type-btn-url" class="type-pill active py-2 px-2.5 rounded-xl border border-zinc-900 dark:border-white bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 text-xs font-medium flex flex-col items-center justify-center space-y-1 transition">
+                <i data-lucide="link" class="w-4 h-4"></i>
+                <span>URL</span>
+              </button>
+              <button type="button" onclick="setContentType('text')" id="type-btn-text" class="type-pill py-2 px-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium flex flex-col items-center justify-center space-y-1 transition">
+                <i data-lucide="align-left" class="w-4 h-4"></i>
+                <span>Text</span>
+              </button>
+              <button type="button" onclick="setContentType('image')" id="type-btn-image" class="type-pill py-2 px-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium flex flex-col items-center justify-center space-y-1 transition">
+                <i data-lucide="image" class="w-4 h-4"></i>
+                <span>Image / File</span>
+              </button>
+              <button type="button" onclick="setContentType('wifi')" id="type-btn-wifi" class="type-pill py-2 px-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium flex flex-col items-center justify-center space-y-1 transition">
+                <i data-lucide="wifi" class="w-4 h-4"></i>
+                <span>Wi-Fi</span>
+              </button>
+              <button type="button" onclick="setContentType('vcard')" id="type-btn-vcard" class="type-pill py-2 px-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium flex flex-col items-center justify-center space-y-1 transition">
+                <i data-lucide="contact" class="w-4 h-4"></i>
+                <span>vCard</span>
+              </button>
+              <button type="button" onclick="setContentType('email')" id="type-btn-email" class="type-pill py-2 px-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium flex flex-col items-center justify-center space-y-1 transition">
+                <i data-lucide="mail" class="w-4 h-4"></i>
+                <span>Email</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dynamic QR & Tracking Switch Card -->
+          <div class="p-4 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/60 flex items-start justify-between space-x-4">
+            <div class="space-y-1">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="bar-chart-2" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+                <span class="text-sm font-semibold text-zinc-900 dark:text-white">Enable Scan Tracking & Dynamic QR</span>
+                <span class="px-2 py-0.5 text-[10px] font-medium bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-full border border-emerald-300 dark:border-emerald-800">Analytics Enabled</span>
+              </div>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                Creates a short trackable link saved to your account to record scans, devices, and browsers. You can update the destination URL anytime without re-printing.
+              </p>
+            </div>
+            <div class="relative inline-block w-11 h-6 align-middle select-none shrink-0 mt-0.5">
+              <input type="checkbox" id="tracking-toggle" checked class="switch-checkbox sr-only" />
+              <label for="tracking-toggle" class="switch-label block overflow-hidden h-6 rounded-full bg-zinc-300 dark:bg-zinc-700 cursor-pointer transition-colors duration-200">
+                <span class="switch-dot block h-5 w-5 rounded-full bg-white shadow transform translate-x-0.5 translate-y-0.5 transition-transform duration-200"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- QR Label / Campaign Name -->
+          <div>
+            <label for="qr-title-input" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">QR Code / Campaign Label</label>
+            <input type="text" id="qr-title-input" placeholder="e.g. Wedding Welcome Sign, Table 5, RSVP Form..." value="Wedding Celebration Welcome" class="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+          </div>
+
+          <!-- Input Fields for Type: URL -->
+          <div id="input-group-url" class="type-input-group space-y-2">
+            <label for="url-input" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Destination Website URL</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
+                <i data-lucide="globe" class="w-4 h-4"></i>
+              </div>
+              <input type="url" id="url-input" placeholder="https://example.com/our-wedding" value="https://example.com/our-wedding" class="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+            </div>
+          </div>
+
+          <!-- Input Fields for Type: Text -->
+          <div id="input-group-text" class="type-input-group hidden space-y-2">
+            <label for="plain-text-input" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Plain Text Note or Quote</label>
+            <textarea id="plain-text-input" rows="3" placeholder="Enter custom message, table seating info, or note..." class="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition"></textarea>
+          </div>
+
+          <!-- Input Fields for Type: Image / File -->
+          <div id="input-group-image" class="type-input-group hidden space-y-3">
+            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Upload Image or PDF Menu</label>
+            <div id="image-dropzone" class="border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 rounded-2xl p-6 text-center cursor-pointer transition bg-zinc-50/50 dark:bg-zinc-900/50">
+              <input type="file" id="image-file-input" class="hidden" accept="image/*,.pdf" />
+              <div class="flex flex-col items-center justify-center space-y-2 pointer-events-none">
+                <div class="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400">
+                  <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+                </div>
+                <p class="text-xs font-medium text-zinc-700 dark:text-zinc-300">Click to choose image or drag & drop</p>
+                <p class="text-[11px] text-zinc-400">PNG, JPG, WEBP, SVG up to 15MB</p>
+              </div>
+            </div>
+            <div id="image-upload-status" class="hidden text-xs py-2 px-3 rounded-xl border"></div>
+          </div>
+
+          <!-- Input Fields for Type: Wi-Fi -->
+          <div id="input-group-wifi" class="type-input-group hidden space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="wifi-ssid" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Network Name (SSID)</label>
+                <input type="text" id="wifi-ssid" placeholder="e.g. Venue_Guest_WiFi" class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+              </div>
+              <div>
+                <label for="wifi-password" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Password</label>
+                <input type="text" id="wifi-password" placeholder="e.g. Love2026" class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+              </div>
+            </div>
+            <div>
+              <label for="wifi-encryption" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Security Type</label>
+              <select id="wifi-encryption" class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition">
+                <option value="WPA">WPA / WPA2 / WPA3 (Recommended)</option>
+                <option value="WEP">WEP</option>
+                <option value="nopass">No Password (Open)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Input Fields for Type: vCard -->
+          <div id="input-group-vcard" class="type-input-group hidden space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="vcard-fn" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Full Name</label>
+                <input type="text" id="vcard-fn" placeholder="Sarah & James" class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+              </div>
+              <div>
+                <label for="vcard-phone" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Phone Number</label>
+                <input type="tel" id="vcard-phone" placeholder="+1 (555) 019-2834" class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="vcard-email" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Email</label>
+                <input type="email" id="vcard-email" placeholder="contact@wedding.com" class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+              </div>
+              <div>
+                <label for="vcard-org" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Event / Organization</label>
+                <input type="text" id="vcard-org" placeholder="Wedding Coordinator" class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Input Fields for Type: Email -->
+          <div id="input-group-email" class="type-input-group hidden space-y-3">
+            <div>
+              <label for="email-to" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Recipient Email</label>
+              <input type="email" id="email-to" placeholder="rsvp@ourwedding.com" class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+            </div>
+            <div>
+              <label for="email-subject" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Subject</label>
+              <input type="text" id="email-subject" placeholder="RSVP Confirmation" class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition" />
+            </div>
+            <div>
+              <label for="email-body" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Prefilled Message</label>
+              <textarea id="email-body" rows="2" placeholder="Hi! We will happily attend..." class="w-full px-3.5 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition"></textarea>
+            </div>
+          </div>
+
+          <!-- Action Button: Generate / Register Tracked QR -->
+          <div class="pt-2">
+            <button type="button" id="generate-track-btn" onclick="applyAndRegisterQRCode()" class="w-full py-3 px-4 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 text-sm font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-100 shadow-sm transition flex items-center justify-center space-x-2">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              <span>Save & Update QR Code</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- TAB 2: Appearance & Styling -->
+        <div id="tab-styling" class="hidden space-y-6">
+
+          <!-- Curated Minimalist Presets -->
+          <div>
+            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2.5">Curated Color Palettes</label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button type="button" onclick="applyPalette('#09090b', '#ffffff')" class="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 text-left transition flex items-center space-x-2.5">
+                <div class="w-5 h-5 rounded-full border border-zinc-300 dark:border-zinc-700 bg-zinc-950"></div>
+                <span class="text-xs font-medium">Obsidian Noir</span>
+              </button>
+              <button type="button" onclick="applyPalette('#064e3b', '#f0fdf4')" class="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 text-left transition flex items-center space-x-2.5">
+                <div class="w-5 h-5 rounded-full border border-zinc-300 dark:border-zinc-700 bg-emerald-900"></div>
+                <span class="text-xs font-medium">Forest Pine</span>
+              </button>
+              <button type="button" onclick="applyPalette('#1e3a8a', '#eff6ff')" class="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 text-left transition flex items-center space-x-2.5">
+                <div class="w-5 h-5 rounded-full border border-zinc-300 dark:border-zinc-700 bg-blue-900"></div>
+                <span class="text-xs font-medium">Royal Navy</span>
+              </button>
+              <button type="button" onclick="applyPalette('#831843', '#fdf2f8')" class="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 text-left transition flex items-center space-x-2.5">
+                <div class="w-5 h-5 rounded-full border border-zinc-300 dark:border-zinc-700 bg-pink-900"></div>
+                <span class="text-xs font-medium">Velvet Berry</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom Colors Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="fg-color" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Foreground Color</label>
+              <div class="flex items-center space-x-2">
+                <input type="color" id="fg-color" value="#09090b" class="w-10 h-10 p-0 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent cursor-pointer" />
+                <input type="text" id="fg-color-hex" value="#09090b" class="flex-1 px-3 py-2 text-xs font-mono bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl" />
+              </div>
+            </div>
+            <div>
+              <label for="bg-color" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Background Color</label>
+              <div class="flex items-center space-x-2">
+                <input type="color" id="bg-color" value="#ffffff" class="w-10 h-10 p-0 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent cursor-pointer" />
+                <input type="text" id="bg-color-hex" value="#ffffff" class="flex-1 px-3 py-2 text-xs font-mono bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Transparent Background Checkbox -->
+          <div class="flex items-center space-x-2">
+            <input type="checkbox" id="transparent-bg" class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-zinc-900 dark:focus:ring-white" />
+            <label for="transparent-bg" class="text-xs font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer">Transparent background (ideal for print & overlay)</label>
+          </div>
+
+          <!-- Dot Pattern & Corner Shapes -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
+            <div>
+              <label for="dot-style" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Dot Style</label>
+              <select id="dot-style" class="w-full px-3 py-2 text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white">
+                <option value="rounded" selected>Rounded Smooth</option>
+                <option value="dots">Modern Dots</option>
+                <option value="extra-rounded">Extra Rounded</option>
+                <option value="classy">Classy</option>
+                <option value="classy-rounded">Classy Rounded</option>
+                <option value="square">Classic Square</option>
+              </select>
+            </div>
+            <div>
+              <label for="corner-square-style" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Corner Square</label>
+              <select id="corner-square-style" class="w-full px-3 py-2 text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white">
+                <option value="extra-rounded" selected>Extra Rounded</option>
+                <option value="dot">Circular Dot</option>
+                <option value="square">Square</option>
+              </select>
+            </div>
+            <div>
+              <label for="corner-dot-style" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Corner Dot</label>
+              <select id="corner-dot-style" class="w-full px-3 py-2 text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white">
+                <option value="dot" selected>Dot</option>
+                <option value="square">Square</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Gradient Controls -->
+          <div class="border-t border-zinc-100 dark:border-zinc-800/80 pt-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300">Enable Color Gradient</span>
+              <input type="checkbox" id="gradient-toggle" class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-zinc-900 dark:focus:ring-white" />
+            </div>
+            <div id="gradient-controls" class="hidden grid grid-cols-2 gap-3 pt-2">
+              <div>
+                <label for="gradient-color" class="block text-xs text-zinc-400 mb-1">Secondary Gradient Color</label>
+                <div class="flex items-center space-x-2">
+                  <input type="color" id="gradient-color" value="#4f46e5" class="w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-transparent cursor-pointer" />
+                  <input type="text" id="gradient-color-hex" value="#4f46e5" class="w-full px-2 py-1 text-xs font-mono bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg" />
+                </div>
+              </div>
+              <div>
+                <label for="gradient-type" class="block text-xs text-zinc-400 mb-1">Gradient Type</label>
+                <select id="gradient-type" class="w-full px-3 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                  <option value="linear">Linear Gradient</option>
+                  <option value="radial">Radial Gradient</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- TAB 3: Logo & Precision -->
+        <div id="tab-branding" class="hidden space-y-6">
+          
+          <!-- Logo Preset Badges -->
+          <div>
+            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Preset Center Icons</label>
+            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              <button type="button" onclick="setPresetLogo('')" class="py-2 px-2 text-xs border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">None</button>
+              <button type="button" onclick="setPresetLogo('heart')" class="py-2 px-2 text-xs border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition flex items-center justify-center text-pink-500"><i data-lucide="heart" class="w-4 h-4"></i></button>
+              <button type="button" onclick="setPresetLogo('wifi')" class="py-2 px-2 text-xs border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition flex items-center justify-center"><i data-lucide="wifi" class="w-4 h-4"></i></button>
+              <button type="button" onclick="setPresetLogo('globe')" class="py-2 px-2 text-xs border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition flex items-center justify-center"><i data-lucide="globe" class="w-4 h-4"></i></button>
+              <button type="button" onclick="setPresetLogo('phone')" class="py-2 px-2 text-xs border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition flex items-center justify-center"><i data-lucide="phone" class="w-4 h-4"></i></button>
+              <button type="button" onclick="setPresetLogo('mail')" class="py-2 px-2 text-xs border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition flex items-center justify-center"><i data-lucide="mail" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+
+          <!-- Custom Logo Upload -->
+          <div>
+            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Custom Center Logo</label>
+            <input type="file" id="logo-file-input" accept="image/*" class="w-full text-xs text-zinc-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 dark:file:bg-zinc-800 file:text-zinc-800 dark:file:text-zinc-200 hover:file:bg-zinc-200 cursor-pointer" />
+          </div>
+
+          <!-- Error Correction Level -->
+          <div>
+            <label for="error-correction" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Error Correction Level</label>
+            <select id="error-correction" class="w-full px-3.5 py-2 text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white">
+              <option value="L">Low (7% recovery) — Cleanest dense pattern</option>
+              <option value="M" selected>Medium (15% recovery) — Standard recommendation</option>
+              <option value="Q">Quartile (25% recovery) — Best with center logos</option>
+              <option value="H">High (30% recovery) — Maximum durability for print</option>
+            </select>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Right Column: Live Output & Action Dock (5 cols) -->
+      <div class="lg:col-span-5 sticky top-24 space-y-4">
+        
+        <div class="bg-white dark:bg-zinc-900/90 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 p-6 shadow-sm flex flex-col items-center">
+          
+          <!-- Live Preview Header -->
+          <div class="w-full flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800/80 mb-5">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Live Preview</span>
+            </div>
+            <div id="active-type-pill" class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+              URL / Dynamic
+            </div>
+          </div>
+
+          <!-- Live QR Code Canvas Container -->
+          <div class="w-full bg-grid-pattern p-6 rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 flex items-center justify-center transition-all">
+            <div id="qr-canvas-wrapper" class="bg-white p-3 rounded-2xl shadow-sm transition-transform duration-200"></div>
+          </div>
+
+          <!-- Short Link Preview & 1-Click Copy -->
+          <div id="preview-link-box" class="w-full mt-4 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60 flex items-center justify-between space-x-2">
+            <div class="truncate text-xs font-mono text-zinc-600 dark:text-zinc-300" id="preview-url-text">
+              https://example.com/our-wedding
+            </div>
+            <button type="button" onclick="copyCurrentTarget()" title="Copy Link" class="shrink-0 p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-white rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+          <!-- Download Toolbar -->
+          <div class="w-full grid grid-cols-2 gap-2 mt-4">
+            <div>
+              <label for="download-format" class="sr-only">Format</label>
+              <select id="download-format" class="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none">
+                <option value="png">PNG (Raster Image)</option>
+                <option value="svg">SVG (Vector Print)</option>
+                <option value="jpeg">JPEG</option>
+                <option value="webp">WebP</option>
+              </select>
+            </div>
+            <div>
+              <label for="download-resolution" class="sr-only">Resolution</label>
+              <select id="download-resolution" class="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none">
+                <option value="1000">1000 x 1000 px (HD)</option>
+                <option value="2000">2000 x 2000 px (Ultra Print)</option>
+                <option value="500">500 x 500 px (Web)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="w-full flex items-center space-x-2 mt-3">
+            <button type="button" id="download-btn" onclick="downloadQRCode()" class="flex-1 py-2.5 px-4 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 text-xs font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-100 shadow-sm transition flex items-center justify-center space-x-1.5">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download File</span>
+            </button>
+            <button type="button" onclick="copyQRCodeImage()" title="Copy QR image to clipboard" class="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition">
+              <i data-lucide="clipboard-copy" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Simulate Scan Button for quick testing -->
+          <button type="button" id="simulate-scan-preview-btn" onclick="simulateActiveScan()" class="w-full mt-2 py-2 px-3 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-zinc-500 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xs font-medium transition flex items-center justify-center space-x-1.5">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5 text-emerald-500"></i>
+            <span>Simulate Mobile Scan (+1 test scan)</span>
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- SECTION: Tracked QR Codes & Analytics Hub (User-specific) -->
+    <section id="analytics-hub" class="space-y-6 pt-6">
+      
+      <!-- Section Header -->
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center space-x-2.5">
+            <i data-lucide="bar-chart-3" class="w-6 h-6 text-emerald-500"></i>
+            <span>My Tracked QR Codes & Analytics</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+            Private real-time scan logs, device distribution, and instant dynamic redirect control for your account.
+          </p>
+        </div>
+        <div id="analytics-refresh-controls" class="flex items-center space-x-2">
+          <button type="button" onclick="loadTrackedLinks()" class="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-xs font-medium text-zinc-700 dark:text-zinc-300 transition flex items-center space-x-1.5">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Logged-Out Access Gate Banner -->
+      <div id="analytics-auth-gate" class="hidden p-8 sm:p-12 text-center rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900/60 space-y-4">
+        <div class="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto text-zinc-700 dark:text-zinc-300">
+          <i data-lucide="lock" class="w-5 h-5"></i>
+        </div>
+        <div class="space-y-1">
+          <h3 class="text-base font-semibold text-zinc-900 dark:text-white">Sign in to view your private QR codes</h3>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
+            Your QR codes and scan analytics are protected and private to your account. Sign in or create a free account to track your codes.
+          </p>
+        </div>
+        <div class="flex items-center justify-center space-x-3 pt-2">
+          <button type="button" onclick="openAuthModal('login')" class="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 text-xs font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition">Sign In</button>
+          <button type="button" onclick="openAuthModal('signup')" class="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">Create Account</button>
+          <button type="button" onclick="useDemoAccount()" class="px-3 py-2 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">Try Demo Account</button>
+        </div>
+      </div>
+
+      <!-- Authenticated Analytics Dashboard View -->
+      <div id="analytics-dashboard-view" class="space-y-6">
+        
+        <!-- Global KPI Metric Cards (4 cards) -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm">
+            <div class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-medium">My Tracked Codes</div>
+            <div class="mt-2 text-2xl sm:text-3xl font-bold font-mono text-zinc-900 dark:text-white" id="stat-total-codes">0</div>
+            <div class="mt-1 text-[11px] text-zinc-400">Active dynamic links</div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm">
+            <div class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-medium">Total Scans</div>
+            <div class="mt-2 text-2xl sm:text-3xl font-bold font-mono text-emerald-600 dark:text-emerald-400" id="stat-total-scans">0</div>
+            <div class="mt-1 text-[11px] text-zinc-400">Cumulative engagements</div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm">
+            <div class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-medium">Last 24 Hours</div>
+            <div class="mt-2 text-2xl sm:text-3xl font-bold font-mono text-zinc-900 dark:text-white" id="stat-today-scans">0</div>
+            <div class="mt-1 text-[11px] text-zinc-400">Recent scan velocity</div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm">
+            <div class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-medium">Top Performer</div>
+            <div class="mt-2 text-base sm:text-lg font-semibold truncate text-zinc-900 dark:text-white" id="stat-top-link">—</div>
+            <div class="mt-1 text-[11px] text-zinc-400" id="stat-top-link-scans">0 scans recorded</div>
+          </div>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+          <div class="relative flex-1 w-full">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
+              <i data-lucide="search" class="w-4 h-4"></i>
+            </div>
+            <input type="text" id="link-search-input" oninput="filterTrackedLinks()" placeholder="Search my codes by title, URL or ID..." class="w-full pl-10 pr-4 py-2 text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white transition" />
+          </div>
+        </div>
+
+        <!-- Links Table / Feed -->
+        <div class="bg-white dark:bg-zinc-900/90 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/60 dark:bg-zinc-900/60 text-zinc-500 dark:text-zinc-400 font-medium">
+                  <th class="py-3 px-4 uppercase tracking-wider">Campaign / QR Title</th>
+                  <th class="py-3 px-4 uppercase tracking-wider">Short Link</th>
+                  <th class="py-3 px-4 uppercase tracking-wider">Destination URL</th>
+                  <th class="py-3 px-4 uppercase tracking-wider text-center">Total Scans</th>
+                  <th class="py-3 px-4 uppercase tracking-wider">Last Activity</th>
+                  <th class="py-3 px-4 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tracked-links-tbody" class="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+                <!-- Rows injected dynamically by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- USER AUTHENTICATION MODAL (Sign In / Sign Up) -->
+  <div id="auth-modal" class="fixed inset-0 z-50 hidden bg-zinc-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6 sm:p-8 space-y-6">
+      
+      <!-- Close button -->
+      <button type="button" onclick="closeAuthModal()" class="absolute top-5 right-5 p-2 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+
+      <!-- Modal Header -->
+      <div class="text-center space-y-1">
+        <div class="w-10 h-10 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center mx-auto mb-3 font-bold">
+          <i data-lucide="lock" class="w-5 h-5"></i>
+        </div>
+        <h3 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-white" id="auth-modal-title">Sign In to QR Studio</h3>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400" id="auth-modal-subtitle">Access your private QR codes and analytics</p>
+      </div>
+
+      <!-- Segmented Tabs: Sign In / Create Account -->
+      <div class="flex items-center p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
+        <button type="button" id="auth-tab-login" onclick="setAuthMode('login')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm transition">Sign In</button>
+        <button type="button" id="auth-tab-signup" onclick="setAuthMode('signup')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition">Create Account</button>
+      </div>
+
+      <!-- Error Alert Box -->
+      <div id="auth-error-box" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs"></div>
+
+      <!-- Auth Form -->
+      <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+        
+        <!-- Name Field (Sign up only) -->
+        <div id="auth-name-group" class="hidden space-y-1">
+          <label for="auth-name" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Your Name or Organization</label>
+          <input type="text" id="auth-name" placeholder="e.g. Sarah & James" class="w-full px-3.5 py-2 text-xs bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white transition" />
+        </div>
+
+        <!-- Email Field -->
+        <div class="space-y-1">
+          <label for="auth-email" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Email Address</label>
+          <input type="email" id="auth-email" required placeholder="you@wedding.com" class="w-full px-3.5 py-2 text-xs bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white transition" />
+        </div>
+
+        <!-- Password Field -->
+        <div class="space-y-1">
+          <label for="auth-password" class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Password</label>
+          <div class="relative">
+            <input type="password" id="auth-password" required minlength="6" placeholder="At least 6 characters" class="w-full pl-3.5 pr-10 py-2 text-xs bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white transition" />
+            <button type="button" onclick="togglePasswordVisibility('auth-password', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+              <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="auth-submit-btn" class="w-full py-2.5 px-4 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 text-xs font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-100 shadow-sm transition flex items-center justify-center space-x-1.5">
+          <span id="auth-submit-label">Sign In</span>
+        </button>
+
+      </form>
+
+      <!-- Quick Demo Account Shortcut -->
+      <div class="pt-2 border-t border-zinc-100 dark:border-zinc-800 text-center">
+        <button type="button" onclick="useDemoAccount()" class="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white underline transition">
+          ⚡ Quick fill demo account: <span class="font-mono text-zinc-700 dark:text-zinc-300">demo@qrstudio.com</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Deep Dive Analytics Modal -->
+  <div id="analytics-modal" class="fixed inset-0 z-50 hidden bg-zinc-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="relative w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-start justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
+        <div>
+          <div class="flex items-center space-x-2">
+            <h3 class="text-xl font-bold text-zinc-900 dark:text-white" id="modal-qr-title">Campaign Name</h3>
+            <span id="modal-qr-type" class="px-2 py-0.5 text-[10px] font-mono uppercase rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">URL</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+            <span class="flex items-center space-x-1">
+              <i data-lucide="link" class="w-3.5 h-3.5"></i>
+              <a href="#" id="modal-short-link" target="_blank" class="text-indigo-600 dark:text-indigo-400 underline font-mono">http://localhost:3000/r/xyz</a>
+            </span>
+            <span>•</span>
+            <span class="flex items-center space-x-1">
+              <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+              <span id="modal-created-at">Created Oct 15, 2026</span>
+            </span>
+          </div>
+        </div>
+
+        <button type="button" onclick="closeAnalyticsModal()" class="p-2 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick KPI Cards inside Modal -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60">
+          <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Total Scans</div>
+          <div class="mt-1 text-2xl font-bold font-mono text-zinc-900 dark:text-white" id="modal-kpi-scans">0</div>
+        </div>
+        <div class="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60">
+          <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Unique Scanners</div>
+          <div class="mt-1 text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400" id="modal-kpi-unique">0</div>
+        </div>
+        <div class="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60">
+          <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Last Scan</div>
+          <div class="mt-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 truncate" id="modal-kpi-last-scan">Never</div>
+        </div>
+        <div class="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60">
+          <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Primary Device</div>
+          <div class="mt-1 text-sm font-semibold text-zinc-900 dark:text-white truncate" id="modal-kpi-device">—</div>
+        </div>
+      </div>
+
+      <!-- Dynamic Destination Update Bar -->
+      <div class="p-4 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 space-y-2">
+        <label for="modal-edit-dest" class="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
+          <span>Dynamic Destination URL (Change destination without re-printing QR)</span>
+          <span class="text-[10px] text-zinc-400 font-normal">Instant live update</span>
+        </label>
+        <div class="flex items-center space-x-2">
+          <input type="url" id="modal-edit-dest" class="flex-1 px-3.5 py-2 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none font-mono" />
+          <button type="button" onclick="saveEditedDestination()" class="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 text-xs font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 transition">Save Target</button>
+        </div>
+      </div>
+
+      <!-- Scans Timeline Chart (Rendered via clean SVG) -->
+      <div class="p-4 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-zinc-900 dark:text-white uppercase tracking-wider">Scan Velocity (Last 7 Days)</span>
+          <span class="text-[11px] text-zinc-400">Daily scan distribution</span>
+        </div>
+        <div id="modal-chart-container" class="h-44 w-full flex items-end">
+          <!-- Dynamically populated SVG Chart -->
+        </div>
+      </div>
+
+      <!-- Breakdowns (Devices, OS, Browsers) -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        
+        <!-- Devices Breakdown -->
+        <div class="p-4 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 space-y-3">
+          <div class="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center space-x-1.5">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+            <span>Devices</span>
+          </div>
+          <div id="modal-breakdown-devices" class="space-y-2 text-xs">
+            <p class="text-zinc-400 text-xs">No scan data yet</p>
+          </div>
+        </div>
+
+        <!-- Operating Systems Breakdown -->
+        <div class="p-4 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 space-y-3">
+          <div class="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center space-x-1.5">
+            <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+            <span>Operating System</span>
+          </div>
+          <div id="modal-breakdown-os" class="space-y-2 text-xs">
+            <p class="text-zinc-400 text-xs">No scan data yet</p>
+          </div>
+        </div>
+
+        <!-- Top Browsers Breakdown -->
+        <div class="p-4 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 space-y-3">
+          <div class="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center space-x-1.5">
+            <i data-lucide="compass" class="w-3.5 h-3.5"></i>
+            <span>Top Browsers</span>
+          </div>
+          <div id="modal-breakdown-browsers" class="space-y-2 text-xs">
+            <p class="text-zinc-400 text-xs">No scan data yet</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Recent Scans Feed -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-zinc-900 dark:text-white">Recent Scans Activity Feed</span>
+          <span class="text-[11px] text-zinc-400">Latest 20 scans with user agents</span>
+        </div>
+        <div class="border border-zinc-200/80 dark:border-zinc-800 rounded-xl overflow-hidden">
+          <div class="max-h-48 overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-zinc-50 dark:bg-zinc-800/80 text-zinc-400 border-b border-zinc-100 dark:border-zinc-800 sticky top-0">
+                <tr>
+                  <th class="py-2 px-3">Timestamp</th>
+                  <th class="py-2 px-3">Device / OS</th>
+                  <th class="py-2 px-3">Browser</th>
+                  <th class="py-2 px-3">Source / Referrer</th>
+                </tr>
+              </thead>
+              <tbody id="modal-scans-tbody" class="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-mono">
+                <tr>
+                  <td colspan="4" class="py-6 text-center text-zinc-400 font-sans">No scans recorded yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-800">
+        <button type="button" id="modal-simulate-scan-btn" onclick="simulateModalScan()" class="px-3 py-2 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 text-xs font-medium text-zinc-700 dark:text-zinc-300 flex items-center space-x-1.5 transition">
+          <i data-lucide="play" class="w-3.5 h-3.5 text-emerald-500"></i>
+          <span>Simulate Scan Now (+1)</span>
+        </button>
+        <button type="button" onclick="closeAnalyticsModal()" class="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 text-xs font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 transition">
+          Done
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Minimalist Toast Alert Container -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-12 opacity-0 pointer-events-none transition-all duration-300 px-4 py-3 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 text-xs font-medium shadow-2xl flex items-center space-x-2 border border-zinc-800 dark:border-zinc-200">
+    <i id="toast-icon" data-lucide="check-circle" class="w-4 h-4 text-emerald-400 dark:text-emerald-600"></i>
+    <span id="toast-message">Action completed</span>
+  </div>
+
+  <!-- APPLICATION JAVASCRIPT LOGIC -->
+  <script>
+    // --- State & Initial Configurations ---
+    let currentUser = null;
+    let authMode = 'login'; // 'login' | 'signup'
+    let currentContentType = 'url';
+    let currentShortId = null;
+    let currentShortUrl = null;
+    let allTrackedLinks = [];
+    let activeAnalyticsShortId = null;
+    let presetLogoSvg = '';
+
+    // Initialize QR Code Styling instance
+    const qrCode = new QRCodeStyling({
+      width: 280,
+      height: 280,
+      type: "canvas",
+      data: "https://example.com/our-wedding",
+      image: "",
+      dotsOptions: {
+        color: "#09090b",
+        type: "rounded"
+      },
+      cornersSquareOptions: {
+        color: "#09090b",
+        type: "extra-rounded"
+      },
+      cornersDotOptions: {
+        color: "#09090b",
+        type: "dot"
+      },
+      backgroundOptions: {
+        color: "#ffffff"
+      },
+      imageOptions: {
+        crossOrigin: "anonymous",
+        margin: 6,
+        imageSize: 0.35,
+        hideBackgroundDots: true
+      },
+      qrOptions: {
+        errorCorrectionLevel: "M"
+      }
+    });
+
+    // Mount QR code canvas
+    const qrCanvasWrapper = document.getElementById("qr-canvas-wrapper");
+    qrCode.append(qrCanvasWrapper);
+
+    // --- Authentication Helpers ---
+    function getAuthToken() {
+      return localStorage.getItem('qr_auth_token');
+    }
+
+    function setAuthToken(token) {
+      if (token) {
+        localStorage.setItem('qr_auth_token', token);
+      } else {
+        localStorage.removeItem('qr_auth_token');
+      }
+    }
+
+    async function checkAuthSession() {
+      const token = getAuthToken();
+      if (!token) {
+        renderAuthUI(null);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          currentUser = data.user;
+          renderAuthUI(currentUser);
+          await loadTrackedLinks();
+        } else {
+          setAuthToken(null);
+          currentUser = null;
+          renderAuthUI(null);
+        }
+      } catch (err) {
+        console.error('Session check failed:', err);
+        renderAuthUI(null);
+      }
+    }
+
+    function renderAuthUI(user) {
+      const container = document.getElementById('nav-auth-container');
+      const gate = document.getElementById('analytics-auth-gate');
+      const dashboard = document.getElementById('analytics-dashboard-view');
+
+      if (!container) return;
+
+      if (user) {
+        // User is logged in
+        const initials = (user.name || user.email).slice(0, 2).toUpperCase();
+        container.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-2 px-2.5 py-1 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs font-medium">
+              <span class="w-5 h-5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center text-[10px] font-bold">${initials}</span>
+              <span class="max-w-[120px] truncate text-zinc-800 dark:text-zinc-200 font-medium">${escapeHtml(user.name || user.email)}</span>
+            </div>
+            <button type="button" onclick="logoutUser()" title="Sign Out" class="p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `;
+        if (gate) gate.classList.add('hidden');
+        if (dashboard) dashboard.classList.remove('hidden');
+      } else {
+        // User is logged out
+        container.innerHTML = `
+          <div class="flex items-center space-x-1.5">
+            <button type="button" onclick="openAuthModal('login')" class="px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+              Sign In
+            </button>
+            <button type="button" onclick="openAuthModal('signup')" class="px-3 py-1.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 text-xs font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition shadow-sm">
+              Sign Up
+            </button>
+          </div>
+        `;
+        if (gate) gate.classList.remove('hidden');
+        if (dashboard) dashboard.classList.add('hidden');
+      }
+
+      lucide.createIcons();
+    }
+
+    // --- Auth Modal Controls ---
+    function openAuthModal(mode = 'login') {
+      setAuthMode(mode);
+      document.getElementById('auth-error-box').classList.add('hidden');
+      document.getElementById('auth-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      const tabLogin = document.getElementById('auth-tab-login');
+      const tabSignup = document.getElementById('auth-tab-signup');
+      const title = document.getElementById('auth-modal-title');
+      const subtitle = document.getElementById('auth-modal-subtitle');
+      const nameGroup = document.getElementById('auth-name-group');
+      const submitLabel = document.getElementById('auth-submit-label');
+
+      if (mode === 'login') {
+        tabLogin.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm transition";
+        tabSignup.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition";
+        title.textContent = "Sign In to QR Studio";
+        subtitle.textContent = "Access your private QR codes and analytics";
+        nameGroup.classList.add('hidden');
+        submitLabel.textContent = "Sign In";
+      } else {
+        tabSignup.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm transition";
+        tabLogin.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition";
+        title.textContent = "Create Free Account";
+        subtitle.textContent = "Keep your QR codes private and track all scans";
+        nameGroup.classList.remove('hidden');
+        submitLabel.textContent = "Create Account";
+      }
+      document.getElementById('auth-error-box').classList.add('hidden');
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const name = document.getElementById('auth-name').value.trim();
+      const errorBox = document.getElementById('auth-error-box');
+      const submitBtn = document.getElementById('auth-submit-btn');
+
+      errorBox.classList.add('hidden');
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-70');
+
+      const endpoint = authMode === 'signup' ? '/api/auth/signup' : '/api/auth/login';
+      const payload = authMode === 'signup' ? { email, password, name } : { email, password };
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Authentication failed');
+        }
+
+        // Save token and state
+        setAuthToken(data.token);
+        currentUser = data.user;
+        renderAuthUI(currentUser);
+        closeAuthModal();
+
+        showToast(authMode === 'signup' ? 'Account created! Welcome.' : `Welcome back, ${currentUser.name || currentUser.email}!`, 'check-circle');
+
+        // Automatically reload tracked links
+        await loadTrackedLinks();
+
+        // If user was creating a tracked QR code, execute it now!
+        if (document.getElementById('tracking-toggle').checked && !currentShortId) {
+          await applyAndRegisterQRCode();
+        }
+
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-70');
+      }
+    }
+
+    function useDemoAccount() {
+      openAuthModal('login');
+      document.getElementById('auth-email').value = 'demo@qrstudio.com';
+      document.getElementById('auth-password').value = 'password123';
+    }
+
+    async function logoutUser() {
+      const token = getAuthToken();
+      if (token) {
+        try {
+          await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+        } catch (e) {
+          // ignore
+        }
+      }
+      setAuthToken(null);
+      currentUser = null;
+      currentShortId = null;
+      currentShortUrl = null;
+      allTrackedLinks = [];
+      renderAuthUI(null);
+      showToast('Signed out.', 'log-out');
+      await recomputeAndRenderQR();
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerHTML = `<i data-lucide="eye-off" class="w-3.5 h-3.5"></i>`;
+      } else {
+        input.type = 'password';
+        btn.innerHTML = `<i data-lucide="eye" class="w-3.5 h-3.5"></i>`;
+      }
+      lucide.createIcons();
+    }
+
+    // --- Tab Switching ---
+    function switchBuilderTab(tab) {
+      document.getElementById('tab-content').classList.toggle('hidden', tab !== 'content');
+      document.getElementById('tab-styling').classList.toggle('hidden', tab !== 'styling');
+      document.getElementById('tab-branding').classList.toggle('hidden', tab !== 'branding');
+
+      const tabs = ['content', 'styling', 'branding'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (t === tab) {
+          btn.className = "flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm transition flex items-center justify-center space-x-1.5";
+        } else {
+          btn.className = "flex-1 py-2 px-3 text-xs font-semibold rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition flex items-center justify-center space-x-1.5";
+        }
+      });
+      lucide.createIcons();
+    }
+
+    // --- Content Type Selection ---
+    function setContentType(type) {
+      currentContentType = type;
+      
+      // Update pills
+      document.querySelectorAll('.type-pill').forEach(btn => {
+        btn.className = "type-pill py-2 px-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium flex flex-col items-center justify-center space-y-1 transition";
+      });
+      const activeBtn = document.getElementById(`type-btn-${type}`);
+      if (activeBtn) {
+        activeBtn.className = "type-pill active py-2 px-2.5 rounded-xl border border-zinc-900 dark:border-white bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 text-xs font-medium flex flex-col items-center justify-center space-y-1 transition";
+      }
+
+      // Hide/Show input groups
+      document.querySelectorAll('.type-input-group').forEach(group => group.classList.add('hidden'));
+      const activeGroup = document.getElementById(`input-group-${type}`);
+      if (activeGroup) activeGroup.classList.remove('hidden');
+
+      // Update pill badge in preview
+      const pill = document.getElementById('active-type-pill');
+      if (pill) pill.textContent = `${type.toUpperCase()} / ${document.getElementById('tracking-toggle').checked ? 'Dynamic' : 'Static'}`;
+
+      recomputeAndRenderQR();
+      lucide.createIcons();
+    }
+
+    // --- Content Raw String Generator ---
+    function computeRawData() {
+      switch (currentContentType) {
+        case 'url':
+          return document.getElementById('url-input').value.trim() || 'https://example.com';
+        case 'text':
+          return document.getElementById('plain-text-input').value.trim() || 'Welcome to QR Studio';
+        case 'wifi':
+          const ssid = document.getElementById('wifi-ssid').value.trim() || 'WiFi_Network';
+          const pass = document.getElementById('wifi-password').value.trim();
+          const enc = document.getElementById('wifi-encryption').value;
+          return `WIFI:T:${enc};S:${ssid};P:${pass};;`;
+        case 'vcard':
+          const fn = document.getElementById('vcard-fn').value.trim() || 'Sarah & James';
+          const tel = document.getElementById('vcard-phone').value.trim();
+          const email = document.getElementById('vcard-email').value.trim();
+          const org = document.getElementById('vcard-org').value.trim();
+          return `BEGIN:VCARD\nVERSION:3.0\nFN:${fn}\nTEL:${tel}\nEMAIL:${email}\nORG:${org}\nEND:VCARD`;
+        case 'email':
+          const to = document.getElementById('email-to').value.trim();
+          const sub = document.getElementById('email-subject').value.trim();
+          const body = document.getElementById('email-body').value.trim();
+          return `mailto:${to}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
+        case 'image':
+          return document.getElementById('url-input').value.trim() || 'https://example.com';
+        default:
+          return 'https://example.com';
+      }
+    }
+
+    // --- Core QR Re-render Function ---
+    async function recomputeAndRenderQR() {
+      const isTracking = document.getElementById('tracking-toggle').checked;
+      let targetData = computeRawData();
+
+      // If tracking is active and we have an existing short URL, point to short URL
+      if (isTracking && currentShortUrl) {
+        targetData = currentShortUrl;
+      }
+
+      // Update preview link box
+      const previewText = document.getElementById('preview-url-text');
+      if (previewText) {
+        previewText.textContent = targetData;
+      }
+
+      // Appearance options
+      const fgColor = document.getElementById('fg-color').value;
+      const isTransparent = document.getElementById('transparent-bg').checked;
+      const bgColor = isTransparent ? 'transparent' : document.getElementById('bg-color').value;
+      const dotType = document.getElementById('dot-style').value;
+      const cornerSquareType = document.getElementById('corner-square-style').value;
+      const cornerDotType = document.getElementById('corner-dot-style').value;
+      const errorCorrection = document.getElementById('error-correction').value;
+
+      const dotsOptions = {
+        color: fgColor,
+        type: dotType
+      };
+
+      // Handle Gradient
+      const isGradient = document.getElementById('gradient-toggle').checked;
+      if (isGradient) {
+        const gradColor = document.getElementById('gradient-color').value;
+        const gradType = document.getElementById('gradient-type').value;
+        dotsOptions.gradient = {
+          type: gradType,
+          colorStops: [
+            { offset: 0, color: fgColor },
+            { offset: 1, color: gradColor }
+          ]
+        };
+      }
+
+      qrCode.update({
+        data: targetData,
+        dotsOptions,
+        cornersSquareOptions: {
+          color: fgColor,
+          type: cornerSquareType
+        },
+        cornersDotOptions: {
+          color: fgColor,
+          type: cornerDotType
+        },
+        backgroundOptions: {
+          color: bgColor
+        },
+        qrOptions: {
+          errorCorrectionLevel: errorCorrection
+        }
+      });
+    }
+
+    // --- Register Tracked QR Code Endpoint Call ---
+    async function applyAndRegisterQRCode() {
+      const isTracking = document.getElementById('tracking-toggle').checked;
+      const rawTarget = computeRawData();
+      const title = document.getElementById('qr-title-input').value.trim() || 'My QR Code';
+
+      if (!isTracking) {
+        currentShortId = null;
+        currentShortUrl = null;
+        recomputeAndRenderQR();
+        showToast('Static QR code updated.', 'check-circle');
+        return;
+      }
+
+      // If user is not logged in, prompt sign in modal first!
+      if (!currentUser) {
+        openAuthModal('signup');
+        showToast('Please sign in or sign up to save & track your QR code.', 'lock');
+        return;
+      }
+
+      const token = getAuthToken();
+
+      // Shorten via Backend API with Auth Token
+      try {
+        const response = await fetch('/api/shorten', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            originalUrl: rawTarget,
+            title: title,
+            contentType: currentContentType
+          })
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            setAuthToken(null);
+            currentUser = null;
+            renderAuthUI(null);
+            openAuthModal('login');
+            throw new Error('Please sign in again.');
+          }
+          throw new Error('Failed to create tracked QR code.');
+        }
+
+        const result = await response.json();
+        currentShortId = result.shortId;
+        currentShortUrl = result.shortUrl;
+
+        await recomputeAndRenderQR();
+        await loadTrackedLinks();
+        showToast(`Tracked QR saved to your account! (${result.shortId})`, 'check-circle');
+      } catch (err) {
+        console.error('Error creating trackable QR:', err);
+        showToast(err.message, 'alert-triangle');
+        recomputeAndRenderQR();
+      }
+    }
+
+    // --- Curated Palette Helper ---
+    function applyPalette(fg, bg) {
+      document.getElementById('fg-color').value = fg;
+      document.getElementById('fg-color-hex').value = fg;
+      document.getElementById('bg-color').value = bg;
+      document.getElementById('bg-color-hex').value = bg;
+      document.getElementById('transparent-bg').checked = false;
+      document.getElementById('gradient-toggle').checked = false;
+      document.getElementById('gradient-controls').classList.add('hidden');
+      recomputeAndRenderQR();
+    }
+
+    // --- Preset Center Icon SVGs ---
+    function setPresetLogo(type) {
+      if (!type) {
+        presetLogoSvg = '';
+        qrCode.update({ image: '' });
+        return;
+      }
+
+      let svgContent = '';
+      if (type === 'heart') {
+        svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="#e11d48" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`;
+      } else if (type === 'wifi') {
+        svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>`;
+      } else if (type === 'globe') {
+        svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#09090b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
+      } else if (type === 'phone') {
+        svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
+      } else if (type === 'mail') {
+        svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`;
+      }
+
+      const encoded = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);
+      qrCode.update({ image: encoded });
+    }
+
+    // --- File & Image Upload Handler ---
+    const dropzone = document.getElementById('image-dropzone');
+    const imageFileInput = document.getElementById('image-file-input');
+    const uploadStatus = document.getElementById('image-upload-status');
+
+    if (dropzone && imageFileInput) {
+      dropzone.addEventListener('click', () => imageFileInput.click());
+      
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('border-zinc-900', 'dark:border-white');
+      });
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('border-zinc-900', 'dark:border-white');
+      });
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('border-zinc-900', 'dark:border-white');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleFileUpload(e.dataTransfer.files[0]);
+        }
+      });
+
+      imageFileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleFileUpload(e.target.files[0]);
+        }
+      });
+    }
+
+    async function handleFileUpload(file) {
+      uploadStatus.classList.remove('hidden', 'bg-red-500/10', 'text-red-500', 'border-red-500/20');
+      uploadStatus.className = 'text-xs py-2 px-3 rounded-xl border bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 flex items-center space-x-2';
+      uploadStatus.innerHTML = `<span class="animate-spin inline-block w-3 h-3 border-2 border-zinc-500 border-t-transparent rounded-full"></span><span>Uploading "${file.name}"...</span>`;
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      try {
+        const response = await fetch('/upload-image', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) throw new Error('Upload failed.');
+        const data = await response.json();
+
+        document.getElementById('url-input').value = data.imageUrl;
+        uploadStatus.className = 'text-xs py-2 px-3 rounded-xl border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+        uploadStatus.textContent = `✓ Uploaded successfully! Storage: ${data.storage}`;
+
+        // Automatically update QR
+        await applyAndRegisterQRCode();
+      } catch (err) {
+        console.error('File upload error:', err);
+        uploadStatus.className = 'text-xs py-2 px-3 rounded-xl border bg-red-500/10 text-red-500 border-red-500/20';
+        uploadStatus.textContent = 'Upload failed. Please try again.';
+      }
+    }
+
+    // Custom Logo File Input
+    document.getElementById('logo-file-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => qrCode.update({ image: reader.result });
+      reader.readAsDataURL(file);
+    });
+
+    // --- Download Functions ---
+    async function downloadQRCode() {
+      const format = document.getElementById('download-format').value;
+      const res = parseInt(document.getElementById('download-resolution').value, 10);
+      const title = document.getElementById('qr-title-input').value.trim() || 'qrcode';
+      const cleanFileName = title.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+
+      // Temporarily update size for high-res export
+      qrCode.update({ width: res, height: res });
+      await qrCode.download({ name: cleanFileName, extension: format });
+      qrCode.update({ width: 280, height: 280 }); // restore preview size
+
+      showToast(`Downloaded ${cleanFileName}.${format}`, 'download');
+    }
+
+    async function copyQRCodeImage() {
+      try {
+        const blob = await qrCode.getRawData('png');
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        showToast('QR code image copied to clipboard!', 'clipboard');
+      } catch (err) {
+        console.error('Clipboard copy error:', err);
+        showToast('Image clipboard copy unsupported in this browser.', 'alert-circle');
+      }
+    }
+
+    function copyCurrentTarget() {
+      const isTracking = document.getElementById('tracking-toggle').checked;
+      const textToCopy = (isTracking && currentShortUrl) ? currentShortUrl : computeRawData();
+      navigator.clipboard.writeText(textToCopy);
+      showToast('Link copied to clipboard!', 'copy');
+    }
+
+    // --- Analytics Hub API Calls (Scoped to Authenticated User) ---
+    async function loadTrackedLinks() {
+      const token = getAuthToken();
+      if (!token) {
+        renderAuthUI(null);
+        return;
+      }
+
+      try {
+        const [linksRes, overviewRes] = await Promise.all([
+          fetch('/api/links', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/analytics/overview', { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+
+        if (linksRes.status === 401) {
+          setAuthToken(null);
+          currentUser = null;
+          renderAuthUI(null);
+          return;
+        }
+
+        if (!linksRes.ok) throw new Error('Could not fetch links');
+        allTrackedLinks = await linksRes.json();
+
+        // Update nav badge
+        const navBadge = document.getElementById('nav-count-badge');
+        if (navBadge) navBadge.textContent = allTrackedLinks.length;
+
+        // Update Global KPIs
+        if (overviewRes.ok) {
+          const overview = await overviewRes.json();
+          document.getElementById('stat-total-codes').textContent = overview.totalCodes;
+          document.getElementById('stat-total-scans').textContent = overview.totalScans;
+          document.getElementById('stat-today-scans').textContent = overview.todayScans;
+          
+          if (overview.topLink) {
+            document.getElementById('stat-top-link').textContent = overview.topLink.title || overview.topLink.short_id;
+            document.getElementById('stat-top-link-scans').textContent = `${overview.topLink.scan_count} scans recorded`;
+          } else {
+            document.getElementById('stat-top-link').textContent = '—';
+            document.getElementById('stat-top-link-scans').textContent = '0 scans recorded';
+          }
+        }
+
+        renderLinksTable(allTrackedLinks);
+      } catch (err) {
+        console.error('Error loading links:', err);
+      }
+    }
+
+    function renderLinksTable(links) {
+      const tbody = document.getElementById('tracked-links-tbody');
+      if (!tbody) return;
+
+      if (!links || links.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-12 text-center text-zinc-400">
+              <div class="flex flex-col items-center justify-center space-y-2">
+                <i data-lucide="inbox" class="w-6 h-6 text-zinc-400"></i>
+                <span>You have not created any tracked QR codes yet.</span>
+              </div>
+            </td>
+          </tr>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      tbody.innerHTML = links.map(link => {
+        const lastScanText = link.last_scanned_at 
+          ? formatRelativeTime(link.last_scanned_at) 
+          : '<span class="text-zinc-400">Never</span>';
+
+        return `
+          <tr class="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40 transition">
+            <td class="py-3.5 px-4 font-medium text-zinc-900 dark:text-white">
+              <div class="flex items-center space-x-2">
+                <span class="truncate max-w-[180px]" title="${escapeHtml(link.title)}">${escapeHtml(link.title)}</span>
+                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500">${link.content_type || 'url'}</span>
+              </div>
+            </td>
+            <td class="py-3.5 px-4 font-mono text-xs">
+              <div class="flex items-center space-x-1.5">
+                <a href="/r/${link.short_id}" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">/r/${link.short_id}</a>
+                <button type="button" onclick="navigator.clipboard.writeText('${window.location.origin}/r/${link.short_id}'); showToast('Copied link!', 'copy');" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </td>
+            <td class="py-3.5 px-4 text-zinc-500 dark:text-zinc-400 max-w-[200px] truncate" title="${escapeHtml(link.original_url)}">
+              ${escapeHtml(link.original_url)}
+            </td>
+            <td class="py-3.5 px-4 text-center">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                ${link.scan_count}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-zinc-500 dark:text-zinc-400 text-xs">
+              ${lastScanText}
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <div class="inline-flex items-center space-x-1">
+                <button type="button" onclick="openAnalyticsModal('${link.short_id}')" class="p-1.5 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition" title="View Analytics">
+                  <i data-lucide="bar-chart-2" class="w-4 h-4 text-emerald-500"></i>
+                </button>
+                <button type="button" onclick="simulateScanForLink('${link.short_id}')" class="p-1.5 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition" title="Simulate Test Scan (+1)">
+                  <i data-lucide="play" class="w-4 h-4"></i>
+                </button>
+                <button type="button" onclick="deleteTrackedLink('${link.short_id}')" class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition" title="Delete QR Code">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function filterTrackedLinks() {
+      const q = document.getElementById('link-search-input').value.toLowerCase().trim();
+      if (!q) {
+        renderLinksTable(allTrackedLinks);
+        return;
+      }
+      const filtered = allTrackedLinks.filter(l => 
+        (l.title && l.title.toLowerCase().includes(q)) ||
+        (l.original_url && l.original_url.toLowerCase().includes(q)) ||
+        (l.short_id && l.short_id.toLowerCase().includes(q))
+      );
+      renderLinksTable(filtered);
+    }
+
+    // --- Deep Analytics Modal Logic ---
+    async function openAnalyticsModal(shortId) {
+      const token = getAuthToken();
+      if (!token) {
+        openAuthModal('login');
+        return;
+      }
+
+      activeAnalyticsShortId = shortId;
+      const modal = document.getElementById('analytics-modal');
+      modal.classList.remove('hidden');
+
+      try {
+        const response = await fetch(`/api/links/${shortId}/analytics`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Analytics not found or access forbidden.');
+        const data = await response.json();
+
+        // Populate Modal Fields
+        document.getElementById('modal-qr-title').textContent = data.link.title || 'Untitled QR';
+        document.getElementById('modal-qr-type').textContent = data.link.contentType || 'url';
+        
+        const shortLinkA = document.getElementById('modal-short-link');
+        shortLinkA.href = data.link.shortUrl;
+        shortLinkA.textContent = data.link.shortUrl;
+
+        document.getElementById('modal-created-at').textContent = 'Created ' + new Date(data.link.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+        document.getElementById('modal-kpi-scans').textContent = data.overview.totalScans;
+        document.getElementById('modal-kpi-unique').textContent = data.overview.uniqueScanners;
+        document.getElementById('modal-kpi-last-scan').textContent = data.overview.lastScannedAt ? formatRelativeTime(data.overview.lastScannedAt) : 'Never';
+
+        // Primary Device
+        const topDev = (data.devices && data.devices[0]) ? `${data.devices[0].name} (${data.devices[0].percentage}%)` : '—';
+        document.getElementById('modal-kpi-device').textContent = topDev;
+
+        // Dynamic Destination input
+        document.getElementById('modal-edit-dest').value = data.link.originalUrl;
+
+        // Render SVG Chart for Timeline
+        renderTimelineChart(data.timeline);
+
+        // Render Device & OS & Browser Breakdowns
+        renderBreakdownList('modal-breakdown-devices', data.devices, 'device');
+        renderBreakdownList('modal-breakdown-os', data.operatingSystems, 'os');
+        renderBreakdownList('modal-breakdown-browsers', data.browsers, 'browser');
+
+        // Render Recent Scans Table
+        renderRecentScansTable(data.recentScans);
+
+        lucide.createIcons();
+      } catch (err) {
+        console.error('Error opening analytics modal:', err);
+        showToast(err.message, 'alert-triangle');
+        closeAnalyticsModal();
+      }
+    }
+
+    function closeAnalyticsModal() {
+      document.getElementById('analytics-modal').classList.add('hidden');
+      activeAnalyticsShortId = null;
+    }
+
+    // Dynamic Destination URL update
+    async function saveEditedDestination() {
+      if (!activeAnalyticsShortId) return;
+      const token = getAuthToken();
+      if (!token) return;
+
+      const newUrl = document.getElementById('modal-edit-dest').value.trim();
+      if (!newUrl) {
+        showToast('Destination URL cannot be empty.', 'alert-circle');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/links/${activeAnalyticsShortId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ originalUrl: newUrl })
+        });
+        if (!res.ok) throw new Error('Update failed');
+        showToast('Destination updated! All future scans will redirect here.', 'check-circle');
+        await loadTrackedLinks();
+      } catch (err) {
+        console.error('Update destination error:', err);
+        showToast('Failed to update destination.', 'alert-triangle');
+      }
+    }
+
+    // --- SVG Timeline Chart Renderer ---
+    function renderTimelineChart(timeline) {
+      const container = document.getElementById('modal-chart-container');
+      if (!container) return;
+
+      if (!timeline || timeline.length === 0) {
+        container.innerHTML = '<p class="text-xs text-zinc-400 mx-auto">No scan activity recorded in this period.</p>';
+        return;
+      }
+
+      const maxCount = Math.max(...timeline.map(t => t.count), 4);
+
+      const barsHtml = timeline.map(item => {
+        const heightPct = Math.max(Math.round((item.count / maxCount) * 100), 4);
+        const dayLabel = item.date.slice(5); // MM-DD
+        return `
+          <div class="flex-1 flex flex-col items-center justify-end h-full group relative px-1">
+            <!-- Tooltip -->
+            <div class="absolute -top-7 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 whitespace-nowrap shadow z-10">
+              ${item.count} scans (${item.date})
+            </div>
+            <!-- Bar -->
+            <div class="w-full max-w-[32px] rounded-t-md bg-emerald-500/20 group-hover:bg-emerald-500 dark:group-hover:bg-emerald-400 transition-colors" style="height: ${heightPct}%;">
+              <div class="w-full h-full bg-emerald-500 rounded-t-md opacity-70 group-hover:opacity-100"></div>
+            </div>
+            <!-- X Axis Label -->
+            <span class="mt-2 text-[10px] font-mono text-zinc-400">${dayLabel}</span>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="w-full h-full flex items-end justify-between border-b border-zinc-200 dark:border-zinc-800 pb-1">
+          ${barsHtml}
+        </div>
+      `;
+    }
+
+    // --- Breakdown Progress Bar List Renderer ---
+    function renderBreakdownList(elementId, items, category) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+
+      if (!items || items.length === 0) {
+        el.innerHTML = '<p class="text-zinc-400 text-xs">No records yet</p>';
+        return;
+      }
+
+      el.innerHTML = items.map(item => `
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="font-medium text-zinc-700 dark:text-zinc-300">${escapeHtml(item.name)}</span>
+            <span class="font-mono text-zinc-400">${item.count} (${item.percentage}%)</span>
+          </div>
+          <div class="w-full h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+            <div class="h-full bg-zinc-900 dark:bg-white rounded-full" style="width: ${item.percentage}%;"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // --- Recent Scans Table Renderer ---
+    function renderRecentScansTable(scans) {
+      const tbody = document.getElementById('modal-scans-tbody');
+      if (!tbody) return;
+
+      if (!scans || scans.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="py-6 text-center text-zinc-400 font-sans">No scans recorded yet. Use "Simulate Scan" to test!</td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = scans.map(s => `
+        <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
+          <td class="py-2 px-3 text-zinc-500 text-[11px]">${formatDate(s.scannedAt)}</td>
+          <td class="py-2 px-3 text-zinc-800 dark:text-zinc-200 font-medium">${s.deviceType || 'Desktop'} / ${s.os || 'Other'}</td>
+          <td class="py-2 px-3 text-zinc-500">${s.browser || 'Browser'}</td>
+          <td class="py-2 px-3 text-zinc-400 truncate max-w-[140px]">${escapeHtml(s.referrer)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // --- Simulation Functions ---
+    async function simulateActiveScan() {
+      if (!currentUser) {
+        openAuthModal('login');
+        showToast('Please sign in to test and track scan simulations.', 'lock');
+        return;
+      }
+
+      if (!currentShortId) {
+        await applyAndRegisterQRCode();
+      }
+      if (currentShortId) {
+        await simulateScanForLink(currentShortId);
+      }
+    }
+
+    async function simulateModalScan() {
+      if (!activeAnalyticsShortId) return;
+      await simulateScanForLink(activeAnalyticsShortId);
+      await openAnalyticsModal(activeAnalyticsShortId);
+    }
+
+    async function simulateScanForLink(shortId) {
+      const token = getAuthToken();
+      if (!token) return;
+
+      try {
+        const response = await fetch(`/api/links/${shortId}/simulate-scan`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Simulation failed or unauthorized.');
+        const data = await response.json();
+        showToast(`+1 Scan recorded (${data.scan.deviceType} / ${data.scan.browser})`, 'check-circle');
+        await loadTrackedLinks();
+      } catch (err) {
+        console.error('Simulate scan error:', err);
+        showToast(err.message, 'alert-triangle');
+      }
+    }
+
+    async function deleteTrackedLink(shortId) {
+      const token = getAuthToken();
+      if (!token) return;
+
+      if (!confirm(`Are you sure you want to delete tracked QR code /r/${shortId}? All analytics will be erased.`)) return;
+
+      try {
+        const res = await fetch(`/api/links/${shortId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Delete failed');
+        showToast('QR code deleted.', 'trash-2');
+        await loadTrackedLinks();
+      } catch (err) {
+        console.error('Delete error:', err);
+        showToast('Could not delete link.', 'alert-triangle');
+      }
+    }
+
+    // --- Toast Notification Helper ---
+    let toastTimeout;
+    function showToast(message, iconName = 'check-circle') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      if (!toast || !toastMsg) return;
+
+      toastMsg.textContent = message;
+      if (toastIcon) {
+        toastIcon.setAttribute('data-lucide', iconName);
+        lucide.createIcons();
+      }
+
+      toast.classList.remove('translate-y-12', 'opacity-0', 'pointer-events-none');
+
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-12', 'opacity-0', 'pointer-events-none');
+      }, 3200);
+    }
+
+    // --- Utilities ---
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    function formatRelativeTime(isoString) {
+      const now = new Date();
+      const past = new Date(isoString);
+      const diffMs = now - past;
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHr = Math.floor(diffMin / 60);
+      const diffDays = Math.floor(diffHr / 24);
+
+      if (diffSec < 60) return 'Just now';
+      if (diffMin < 60) return `${diffMin}m ago`;
+      if (diffHr < 24) return `${diffHr}h ago`;
+      if (diffDays === 1) return 'Yesterday';
+      return past.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    function formatDate(isoString) {
+      if (!isoString) return '—';
+      const d = new Date(isoString);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // --- Theme Controller (Dark / Light) ---
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const themeIcon = document.getElementById('theme-icon');
+
+    function initTheme() {
+      const saved = localStorage.getItem('qr-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (saved === 'dark' || (!saved && prefersDark)) {
+        document.documentElement.classList.add('dark');
+        themeIcon.setAttribute('data-lucide', 'sun');
+      } else {
+        document.documentElement.classList.remove('dark');
+        themeIcon.setAttribute('data-lucide', 'moon');
+      }
+      lucide.createIcons();
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('qr-theme', isDark ? 'dark' : 'light');
+      themeIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+      lucide.createIcons();
+    });
+
+    // --- Color Pickers Sync Listeners ---
+    ['fg-color', 'bg-color', 'gradient-color'].forEach(id => {
+      const picker = document.getElementById(id);
+      const hex = document.getElementById(`${id}-hex`);
+      if (picker && hex) {
+        picker.addEventListener('input', () => {
+          hex.value = picker.value;
+          recomputeAndRenderQR();
+        });
+        hex.addEventListener('input', () => {
+          if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) {
+            picker.value = hex.value;
+            recomputeAndRenderQR();
+          }
+        });
+      }
+    });
+
+    document.getElementById('transparent-bg').addEventListener('change', () => {
+      recomputeAndRenderQR();
+    });
+
+    document.getElementById('gradient-toggle').addEventListener('change', (e) => {
+      document.getElementById('gradient-controls').classList.toggle('hidden', !e.target.checked);
+      recomputeAndRenderQR();
+    });
+
+    document.getElementById('gradient-type').addEventListener('change', recomputeAndRenderQR);
+    document.getElementById('dot-style').addEventListener('change', recomputeAndRenderQR);
+    document.getElementById('corner-square-style').addEventListener('change', recomputeAndRenderQR);
+    document.getElementById('corner-dot-style').addEventListener('change', recomputeAndRenderQR);
+    document.getElementById('error-correction').addEventListener('change', recomputeAndRenderQR);
+
+    // Live inputs in content forms
+    ['url-input', 'plain-text-input', 'wifi-ssid', 'wifi-password', 'wifi-encryption', 'vcard-fn', 'vcard-phone', 'vcard-email', 'email-to', 'email-subject'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', () => {
+        // Reset registered link if user changes content so they re-register
+        currentShortId = null;
+        currentShortUrl = null;
+        recomputeAndRenderQR();
+      });
+    });
+
+    // Tracking toggle change
+    document.getElementById('tracking-toggle').addEventListener('change', (e) => {
+      const pill = document.getElementById('active-type-pill');
+      if (pill) pill.textContent = `${currentContentType.toUpperCase()} / ${e.target.checked ? 'Dynamic' : 'Static'}`;
+      recomputeAndRenderQR();
+    });
+
+    // --- Initialize on Page Load ---
+    window.addEventListener('DOMContentLoaded', async () => {
+      initTheme();
+      lucide.createIcons();
+      await checkAuthSession();
+      await recomputeAndRenderQR();
+    });
+  </script>
+</body>
+</html>
