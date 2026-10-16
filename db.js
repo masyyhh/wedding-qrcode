@@ -13,25 +13,64 @@ let sqliteDb = null;
 
 if (isPostgres) {
   const { Pool } = require('pg');
-  // Support SSL for hosted PostgreSQL providers like Neon, Supabase, Render, Railway, AWS RDS
-  const sslConfig = process.env.DATABASE_SSL === 'false' 
-    ? false 
-    : { rejectUnauthorized: false };
+  
+  // Smart SSL Detection:
+  // - Explicitly disabled if DATABASE_SSL === 'false' or url specifies sslmode=disable
+  // - Explicitly enabled if DATABASE_SSL === 'true' or url specifies sslmode=require
+  // - For local/docker container hosts (e.g. 'postgres', 'localhost', '127.0.0.1', 'db'), default to false
+  // - For remote cloud databases (Neon, Supabase, Render, Railway, AWS RDS), default to SSL enabled
+  let sslConfig = false;
+  if (process.env.DATABASE_SSL === 'true') {
+    sslConfig = { rejectUnauthorized: false };
+  } else if (process.env.DATABASE_SSL === 'false') {
+    sslConfig = false;
+  } else {
+    try {
+      const parsedUrl = new URL(databaseUrl);
+      const host = parsedUrl.hostname.toLowerCase();
+      const sslMode = parsedUrl.searchParams.get('sslmode');
 
-  pgPool = new Pool({
+      if (sslMode === 'disable') {
+        sslConfig = false;
+      } else if (sslMode === 'require' || sslMode === 'prefer' || sslMode === 'verify-full' || sslMode === 'verify-ca') {
+        sslConfig = { rejectUnauthorized: false };
+      } else if (
+        host === 'postgres' ||
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === 'db' ||
+        host.endsWith('.local') ||
+        host.endsWith('.internal')
+      ) {
+        sslConfig = false;
+      } else {
+        // Remote cloud host
+        sslConfig = { rejectUnauthorized: false };
+      }
+    } catch {
+      sslConfig = false;
+    }
+  }
+
+  const poolOptions = {
     connectionString: databaseUrl,
-    ssl: sslConfig,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000
-  });
+  };
+
+  if (sslConfig) {
+    poolOptions.ssl = sslConfig;
+  }
+
+  pgPool = new Pool(poolOptions);
 
   pgPool.on('error', (err) => {
     console.error('Unexpected error on idle PostgreSQL client:', err);
   });
 
   dbEngine = 'postgres';
-  console.log('🐘 Database Engine: PostgreSQL');
+  console.log(`🐘 Database Engine: PostgreSQL (SSL: ${sslConfig ? 'Active' : 'Disabled'})`);
 } else {
   const { DatabaseSync } = require('node:sqlite');
   const dbPath = path.join(__dirname, 'database.sqlite');
