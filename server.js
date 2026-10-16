@@ -91,6 +91,9 @@ app.use(helmet({
       ],
       connectSrc: [
         "'self'",
+        "data:",
+        "blob:",
+        "https:",
         "https://cdn.jsdelivr.net",
         "https://unpkg.com"
       ],
