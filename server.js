@@ -573,7 +573,7 @@ app.post('/upload-image', authRequired, upload.single('image'), async (req, res)
 });
 
 // 6. Create / Shorten Trackable Link
-app.post('/api/shorten', authRequired, linkCreationLimiter, async (req, res) => {
+app.post(['/api/shorten', '/api/links'], authRequired, linkCreationLimiter, async (req, res) => {
   const { originalUrl, title, contentType } = req.body;
 
   const validation = sanitizeAndValidateUrl(originalUrl);
@@ -883,8 +883,11 @@ app.get('/r/:shortId', redirectLimiter, async (req, res) => {
   }
 });
 
-// Fallback to index.html for frontend routing
+// Fallback to index.html for frontend routing (except /api routes which return clean JSON 404)
 app.use((req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: `API route not found: ${req.method} ${req.path}` });
+  }
   res.sendFile(path.join(clientBuildDir, 'index.html'));
 });
 

@@ -199,7 +199,7 @@ export default function App() {
 
     setIsSaving(true);
     try {
-      const res = await fetch('/api/links', {
+      const res = await fetch('/api/shorten', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -213,13 +213,22 @@ export default function App() {
         })
       });
 
-      const data = await res.json();
+      const contentTypeHeader = res.headers.get('content-type') || '';
+      let data = {};
+      if (contentTypeHeader.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(text || 'Server returned an invalid response.');
+      }
+
       if (!res.ok) throw new Error(data.error || 'Failed to save dynamic QR code');
 
       setRegisteredShortUrl(data.shortUrl);
       showToast('Dynamic QR code registered! Live tracking is active.', 'check-circle');
       loadUserLinks(token);
     } catch (err) {
+      console.error('Error saving dynamic QR:', err);
       showToast(err.message, 'alert-triangle');
     } finally {
       setIsSaving(false);
