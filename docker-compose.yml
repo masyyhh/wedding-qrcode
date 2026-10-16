@@ -1,0 +1,38 @@
+services:
+  app:
+    build: .
+    container_name: qr-studio
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://qr_user:qr_secure_pass@postgres:5432/qr_studio
+      - DATABASE_SSL=false
+      - CORS_ORIGIN=*
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/public/uploads
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: qr-studio-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qr_user
+      POSTGRES_PASSWORD: qr_secure_pass
+      POSTGRES_DB: qr_studio
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qr_user -d qr_studio"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  uploads_data:
+  pg_data:

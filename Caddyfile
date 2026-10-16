@@ -1,0 +1,23 @@
+# Caddyfile for QR Patterns (qrpatterns.site)
+# Automatic Let's Encrypt / ZeroSSL TLS, HTTP/2 & HTTP/3, and gzip/zstd compression
+
+www.{$DOMAIN:qrpatterns.site} {
+    redir https://{$DOMAIN:qrpatterns.site}{uri} permanent
+}
+
+{$DOMAIN:qrpatterns.site} {
+    encode zstd gzip
+
+    reverse_proxy app:5001 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

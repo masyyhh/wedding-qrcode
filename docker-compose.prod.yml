@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: qrpatterns-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qrpatterns}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password required}
+      POSTGRES_DB: ${POSTGRES_DB:-qrpatterns}
+    volumes:
+      - qrpatterns_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qrpatterns} -d ${POSTGRES_DB:-qrpatterns}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - qrpatterns_net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qrpatterns-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qrpatterns}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-qrpatterns}
+      JWT_SECRET: ${JWT_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      CLIENT_URL: ${CLIENT_URL:?CLIENT_URL required}
+      SEED_DEMO: ${SEED_DEMO:-false}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+    volumes:
+      - qrpatterns_uploads:/app/public/uploads
+    networks:
+      - qrpatterns_net
+
+  # NOTE: If this droplet already runs Caddy on host ports 80/443 for another website (e.g. Faisaa),
+  # do not bind ports 80/443 here. Instead, connect your host Caddy to qrpatterns_net and reverse_proxy to qrpatterns-app:5001.
+  caddy:
+    image: caddy:2-alpine
+    container_name: qrpatterns-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-qrpatterns.site}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - qrpatterns_caddy_data:/data
+      - qrpatterns_caddy_config:/config
+    depends_on:
+      - app
+    networks:
+      - qrpatterns_net
+
+networks:
+  qrpatterns_net:
+    driver: bridge
+
+volumes:
+  qrpatterns_pgdata:
+  qrpatterns_uploads:
+  qrpatterns_caddy_data:
+  qrpatterns_caddy_config:

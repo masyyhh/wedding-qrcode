@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.DS_Store
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+wedding-qrcode
+Dockerfile
+docker-compose*.yml
+Caddyfile
+README.md
